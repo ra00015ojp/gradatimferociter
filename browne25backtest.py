@@ -2,7 +2,7 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import matplotlib.pyplot as plt
-import pandas_datareader.data as pdr
+# pandas_datareader removed - using yfinance for all data
 import datetime
 
 st.set_page_config(page_title="Permanent Portfolio Analyzer", layout="wide")
@@ -70,9 +70,15 @@ def fetch_data(ticker, start, end):
 @st.cache_data(ttl=3600)
 def fetch_tbill_data(start, end):
     try:
-        cash_yield = pdr.get_data_fred('TB3MS', start=start, end=end)
-        if cash_yield.empty or len(cash_yield) < 2:
-            raise ValueError("Insufficient data for TB3MS")
+        # Use ^IRX (13-week Treasury Bill) from Yahoo Finance
+        # Returns annualized yield, need to convert to monthly
+        tbill_data = yf.download('^IRX', start=start, end=end, interval='1mo', auto_adjust=False, progress=False)['Adj Close']
+        if tbill_data.empty or len(tbill_data) < 2:
+            raise ValueError("Insufficient data for T-Bills")
+        if isinstance(tbill_data, pd.DataFrame):
+            tbill_data = tbill_data.squeeze()
+        # ^IRX is already in percentage form, create DataFrame to match original format
+        cash_yield = pd.DataFrame({'TB3MS': tbill_data})
         return cash_yield
     except Exception as e:
         st.error(f"Error fetching T-Bill data: {e}")
